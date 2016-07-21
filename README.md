@@ -31,6 +31,6 @@ Build system  : Android Studio
 If it is not working well, please restart application.
 
 ## Reference
-Google sampel (Android-Bluetooth-chat)
+Google sample (Android-Bluetooth-chat)
 https://github.com/googlesamples/android-BluetoothChat
 
