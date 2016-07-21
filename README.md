@@ -30,9 +30,7 @@ Build system  : Android Studio
 # Tips
 If it is not working well, please restart application.
 
-## Defectiveness
-If you press Run button twice, sending data won't stop.
-
-You should forcibly turn off the application.
-
+## Reference
+Google sampel (Android-Bluetooth-chat)
+https://github.com/googlesamples/android-BluetoothChat
 
