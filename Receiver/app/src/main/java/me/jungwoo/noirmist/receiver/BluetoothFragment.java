@@ -34,16 +34,15 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
 /**
  * This fragment controls Bluetooth to communicate with other devices.
  */
-public class BluetoothChatFragment extends Fragment {
+public class BluetoothFragment extends Fragment {
 
-    private static final String TAG = "BluetoothChatFragment";
+    private static final String TAG = "BluetoothFragment";
 
     // Intent request codes
     private static final int REQUEST_CONNECT_DEVICE_SECURE = 1;
@@ -51,44 +50,39 @@ public class BluetoothChatFragment extends Fragment {
     private static final int REQUEST_ENABLE_BT = 3;
 
     // Layout Views
-    private TextView mGyroX;
-    private TextView mGyroY;
-    private TextView mGyroZ;
+    private TextView gyroX;
+    private TextView gyroY;
+    private TextView gyroZ;
 
-    private TextView mAcceloX;
-    private TextView mAcceloY;
-    private TextView mAcceloZ;
+    private TextView acceloX;
+    private TextView acceloY;
+    private TextView acceloZ;
 
-    private TextView mCheckcon;
+    private TextView checkCon;
     /**
      * Name of the connected device
      */
-    private String mConnectedDeviceName = null;
-
-    /**
-     * Array adapter for the conversation thread
-     */
-    private ArrayAdapter<String> mConversationArrayAdapter;
+    private String connectedDeviceName = null;
 
     /**
      * Local Bluetooth adapter
      */
-    private BluetoothAdapter mBluetoothAdapter = null;
+    private BluetoothAdapter btAdapter = null;
 
     /**
-     * Member object for the chat services
+     * Member object for the bluetooth services
      */
-    private BluetoothChatService mChatService = null;
+    private BluetoothService btService = null;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
         // Get local Bluetooth adapter
-        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        btAdapter = BluetoothAdapter.getDefaultAdapter();
 
         // If the adapter is null, then Bluetooth is not supported
-        if (mBluetoothAdapter == null) {
+        if (btAdapter == null) {
             FragmentActivity activity = getActivity();
             Toast.makeText(activity, "Bluetooth is not available", Toast.LENGTH_LONG).show();
             activity.finish();
@@ -100,22 +94,20 @@ public class BluetoothChatFragment extends Fragment {
     public void onStart() {
         super.onStart();
         // If BT is not on, request that it be enabled.
-        // setupChat() will then be called during onActivityResult
-        if (!mBluetoothAdapter.isEnabled()) {
+        if (!btAdapter.isEnabled()) {
             Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableIntent, REQUEST_ENABLE_BT);
-            // Otherwise, setup the chat session
-        } else if (mChatService == null) {
-            //setupChat();
-            mChatService = new BluetoothChatService(getActivity(), mHandler);
+            // Otherwise, setup the Bluetooth service
+        } else if (btService == null) {
+            btService = new BluetoothService(getActivity(), handler);
         }
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (mChatService != null) {
-            mChatService.stop();
+        if (btService != null) {
+            btService.stop();
         }
     }
 
@@ -126,11 +118,11 @@ public class BluetoothChatFragment extends Fragment {
         // Performing this check in onResume() covers the case in which BT was
         // not enabled during onStart(), so we were paused to enable it...
         // onResume() will be called when ACTION_REQUEST_ENABLE activity returns.
-        if (mChatService != null) {
+        if (btService != null) {
             // Only if the state is STATE_NONE, do we know that we haven't started already
-            if (mChatService.getState() == BluetoothChatService.STATE_NONE) {
-                // Start the Bluetooth chat services
-                mChatService.start();
+            if (btService.getState() == BluetoothService.STATE_NONE) {
+                // Start the Bluetooth services
+                btService.start();
             }
         }
     }
@@ -138,28 +130,28 @@ public class BluetoothChatFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_bluetooth_chat, container, false);
+        return inflater.inflate(R.layout.fragment_bluetooth, container, false);
     }
 
     @Override
     public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
 
-        mGyroX = (TextView) view.findViewById(R.id.gyroX);
-        mGyroY = (TextView) view.findViewById(R.id.gyroY);
-        mGyroZ = (TextView) view.findViewById(R.id.gyroZ);
+        gyroX = (TextView) view.findViewById(R.id.gyroX);
+        gyroY = (TextView) view.findViewById(R.id.gyroY);
+        gyroZ = (TextView) view.findViewById(R.id.gyroZ);
 
-        mAcceloX = (TextView) view.findViewById(R.id.acceloX);
-        mAcceloY = (TextView) view.findViewById(R.id.acceloY);
-        mAcceloZ = (TextView) view.findViewById(R.id.acceloZ);
+        acceloX = (TextView) view.findViewById(R.id.acceloX);
+        acceloY = (TextView) view.findViewById(R.id.acceloY);
+        acceloZ = (TextView) view.findViewById(R.id.acceloZ);
 
-        mCheckcon = (TextView) view.findViewById(R.id.checkconnect);
+        checkCon = (TextView) view.findViewById(R.id.checkconnect);
     }
 
     /**
      * Makes this device discoverable.
      */
     private void ensureDiscoverable() {
-        if (mBluetoothAdapter.getScanMode() !=
+        if (btAdapter.getScanMode() !=
                 BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
             Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
@@ -173,7 +165,6 @@ public class BluetoothChatFragment extends Fragment {
      *
      * @param resId a string resource ID
      */
-    //need
     private void setStatus(int resId) {
         FragmentActivity activity = getActivity();
         if (null == activity) {
@@ -191,7 +182,6 @@ public class BluetoothChatFragment extends Fragment {
      *
      * @param subTitle status
      */
-    //neeed
     private void setStatus(CharSequence subTitle) {
         FragmentActivity activity = getActivity();
         if (null == activity) {
@@ -218,50 +208,40 @@ public class BluetoothChatFragment extends Fragment {
         String ay = parts[4];
         String az = parts[5];
 
-//        System.out.println("parse start");
-//        System.out.println(gx);
-//        System.out.println(gy);
-//        System.out.println(gz);
-//
-//        System.out.println(ax);
-//        System.out.println(ay);
-//        System.out.println(az);
-//        System.out.println("parse end");
-
         // Setting Text field
-        mGyroX.setText(gx);
-        mGyroY.setText(gy);
-        mGyroZ.setText(gz);
+        gyroX.setText(gx);
+        gyroY.setText(gy);
+        gyroZ.setText(gz);
 
-        mAcceloX.setText(ax);
-        mAcceloY.setText(ay);
-        mAcceloZ.setText(az);
+        acceloX.setText(ax);
+        acceloY.setText(ay);
+        acceloZ.setText(az);
 
     }
 
     /**
-     * The Handler that gets information back from the BluetoothChatService
+     * The Handler that gets information back from the BluetoothService
      */
-    private final Handler mHandler = new Handler() {
+    private final Handler handler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             FragmentActivity activity = getActivity();
             switch (msg.what) {
                 case Constants.MESSAGE_STATE_CHANGE:
                     switch (msg.arg1) {
-                        case BluetoothChatService.STATE_CONNECTED:
-                            setStatus(getString(R.string.title_connected_to, mConnectedDeviceName));
-                            mCheckcon.setText(getString(R.string.title_connected_to, mConnectedDeviceName));
+                        case BluetoothService.STATE_CONNECTED:
+                            setStatus(getString(R.string.title_connected_to, connectedDeviceName));
+                            checkCon.setText(getString(R.string.title_connected_to, connectedDeviceName));
                             // reset all value
                             break;
-                        case BluetoothChatService.STATE_CONNECTING:
+                        case BluetoothService.STATE_CONNECTING:
                             setStatus(R.string.title_connecting);
-                            mCheckcon.setText(R.string.title_connecting);
+                            checkCon.setText(R.string.title_connecting);
                             break;
-                        case BluetoothChatService.STATE_LISTEN:
-                        case BluetoothChatService.STATE_NONE:
+                        case BluetoothService.STATE_LISTEN:
+                        case BluetoothService.STATE_NONE:
                             setStatus(R.string.title_not_connected);
-                            mCheckcon.setText(R.string.title_not_connected);
+                            checkCon.setText(R.string.title_not_connected);
                             break;
                     }
                     break;
@@ -277,10 +257,10 @@ public class BluetoothChatFragment extends Fragment {
                     break;
                 case Constants.MESSAGE_DEVICE_NAME:
                     // save the connected device's name
-                    mConnectedDeviceName = msg.getData().getString(Constants.DEVICE_NAME);
+                    connectedDeviceName = msg.getData().getString(Constants.DEVICE_NAME);
                     if (null != activity) {
                         Toast.makeText(activity, "Connected to "
-                                + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
+                                + connectedDeviceName, Toast.LENGTH_SHORT).show();
                     }
                     break;
                 case Constants.MESSAGE_TOAST:
@@ -295,24 +275,17 @@ public class BluetoothChatFragment extends Fragment {
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
-            case REQUEST_CONNECT_DEVICE_SECURE:
-                // When DeviceListActivity returns with a device to connect
-                if (resultCode == Activity.RESULT_OK) {
-                    connectDevice(data, true);
-                }
-                break;
             case REQUEST_CONNECT_DEVICE_INSECURE:
                 // When DeviceListActivity returns with a device to connect
                 if (resultCode == Activity.RESULT_OK) {
-                    connectDevice(data, false);
+                    connectDevice(data);
                 }
                 break;
             case REQUEST_ENABLE_BT:
                 // When the request to enable Bluetooth returns
                 if (resultCode == Activity.RESULT_OK) {
-                    // Bluetooth is now enabled, so set up a chat session
-                    //setupChat();
-                    mChatService = new BluetoothChatService(getActivity(), mHandler);
+                    // Bluetooth is now enabled
+                    btService = new BluetoothService(getActivity(), handler);
                 } else {
                     // User did not enable Bluetooth or an error occurred
                     Log.d(TAG, "BT not enabled");
@@ -327,16 +300,15 @@ public class BluetoothChatFragment extends Fragment {
      * Establish connection with other device
      *
      * @param data   An {@link Intent} with {@link DeviceListActivity#EXTRA_DEVICE_ADDRESS} extra.
-     * @param secure Socket Security type - Secure (true) , Insecure (false)
      */
-    private void connectDevice(Intent data, boolean secure) {
+    private void connectDevice(Intent data) {
         // Get the device MAC address
         String address = data.getExtras()
                 .getString(DeviceListActivity.EXTRA_DEVICE_ADDRESS);
         // Get the BluetoothDevice object
-        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
+        BluetoothDevice device = btAdapter.getRemoteDevice(address);
         // Attempt to connect to the device
-        mChatService.connect(device, secure);
+        btService.connect(device);
     }
 
     @Override
@@ -349,8 +321,8 @@ public class BluetoothChatFragment extends Fragment {
         switch (item.getItemId()) {
             case R.id.insecure_connect_scan: {
                 // Launch the DeviceListActivity to see devices and do scan
-                Intent serverIntent = new Intent(getActivity(), DeviceListActivity.class);
-                startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE_INSECURE);
+                Intent connectIntect = new Intent(getActivity(), DeviceListActivity.class);
+                startActivityForResult(connectIntect, REQUEST_CONNECT_DEVICE_INSECURE);
                 return true;
             }
             case R.id.discoverable: {

@@ -14,21 +14,6 @@ import android.widget.Button;
 
 public class MainActivity extends Activity implements View.OnClickListener, SensorEventListener {
 
-    /*
-     * Set up for Sensor
-     */
-    private SensorManager mSensorManager;
-    private Sensor mGyroscope;
-    private Sensor accSensor;
-
-    int accelXValue;
-    int accelYValue;
-    int accelZValue;
-
-    int gyroX;
-    int gyroY;
-    int gyroZ;
-
     // Debugging
     private static final String TAG = "Main";
 
@@ -36,41 +21,49 @@ public class MainActivity extends Activity implements View.OnClickListener, Sens
     private static final int REQUEST_CONNECT_DEVICE = 1;
     private static final int REQUEST_ENABLE_BT = 2;
 
-    // Layout
-    private Button btn_Connect;
-    private Button btn_Run;
-    private Button btn_Stop;
-
+    // Class for Data sending
     private BluetoothService btService = null;
+    private SendingThread sendThread = null;
 
-    //private Handler mHandler = null;
-    private SendingThread mSendThread = null;
+    // Set up for Sensor
+    private SensorManager sensorManager;
+    private Sensor gyroSensor;
+    private Sensor accSensor;
+
+    int accelX;
+    int accelY;
+    int accelZ;
+
+    int gyroX;
+    int gyroY;
+    int gyroZ;
+
+    // Layout
+    private Button btnConnect;
+    private Button btnRunStop;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.e(TAG, "onCreate");
-
         setContentView(R.layout.activity_main);
-        // Get SensorManager
-        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        // Gyroscope sensor
-        mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        // Accelerometer Sensor
-        accSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
 
-        /** Main Layout **/
-        btn_Connect = (Button) findViewById(R.id.btn_connect);
-        btn_Run = (Button) findViewById(R.id.btn_run);
-        btn_Stop = (Button) findViewById(R.id.btn_stop);
+        // Set SensorManager
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        gyroSensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        accSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
+
+        // Main Layout
+        btnConnect = (Button) findViewById(R.id.btn_connect);
+        btnRunStop = (Button) findViewById(R.id.btn_run_stop);
 
         // Set Click Listener
-        btn_Connect.setOnClickListener(this);
-        btn_Run.setOnClickListener(this);
-        btn_Stop.setOnClickListener(this);
+        btnConnect.setOnClickListener(this);
+        btnRunStop.setOnClickListener(this);
 
-        // Set BluetoothService class
+        // Set BluetoothService
+
         if(btService == null) {
-            btService = new BluetoothService(this); //,mHandler);
+            btService = new BluetoothService(this);
         }
     }
 
@@ -85,33 +78,28 @@ public class MainActivity extends Activity implements View.OnClickListener, Sens
                     finish();
                 }
                 break;
-
-            case R.id.btn_run:
-                mSendThread = new SendingThread();
-                mSendThread.start();
-                break;
-
-            case R.id.btn_stop:
-                mSendThread.stopThread();
+            case R.id.btn_run_stop:
+                if(sendThread == null){
+                    sendThread = new SendingThread();
+                    sendThread.start();
+                } else {
+                    sendThread.stopThread();
+                    sendThread = null;
+                }
                 break;
         }
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        Log.d(TAG, "onActivityResult " + resultCode);
-
         switch (requestCode) {
-
             case REQUEST_ENABLE_BT:
                 // When the request to enable Bluetooth returns
                 if (resultCode == Activity.RESULT_OK) {
                     btService.scanDevice();
                 } else {
-
                     Log.d(TAG, "Bluetooth is not enabled");
                 }
                 break;
-
             case REQUEST_CONNECT_DEVICE:
                 // When DeviceListActivity returns with a device to connect
                 if (resultCode == Activity.RESULT_OK) {
@@ -123,12 +111,12 @@ public class MainActivity extends Activity implements View.OnClickListener, Sens
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        Sensor localsensor = event.sensor;
-        switch (localsensor.getType()){
+        Sensor sensor = event.sensor;
+        switch (sensor.getType()){
             case Sensor.TYPE_LINEAR_ACCELERATION:
-                accelXValue = (int) event.values[0];
-                accelYValue = (int) event.values[1];
-                accelZValue = (int) event.values[2];
+                accelX = (int) event.values[0];
+                accelY = (int) event.values[1];
+                accelZ = (int) event.values[2];
                 break;
             case Sensor.TYPE_GYROSCOPE:
                 gyroX = Math.round(event.values[0] * 1000);
@@ -136,24 +124,21 @@ public class MainActivity extends Activity implements View.OnClickListener, Sens
                 gyroZ = Math.round(event.values[2] * 1000);
                 break;
         }
-
     }
 
     @Override
-    public void onAccuracyChanged(Sensor sensor, int i) {
-
-    }
+    public void onAccuracyChanged(Sensor sensor, int i) {}
     // Register Listener
     protected void onResume() {
         super.onResume();
-        mSensorManager.registerListener(this, mGyroscope,SensorManager.SENSOR_DELAY_GAME);
-        mSensorManager.registerListener(this, accSensor,SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(this, gyroSensor,SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(this, accSensor,SensorManager.SENSOR_DELAY_GAME);
     }
 
     // Unregister Listener
     protected void onPause() {
         super.onPause();
-        mSensorManager.unregisterListener(this);
+        sensorManager.unregisterListener(this);
     }
 
     // Set sending thread for sending data to another device
@@ -163,13 +148,8 @@ public class MainActivity extends Activity implements View.OnClickListener, Sens
         public SendingThread() {
             isPlay = true;
         }
-
-        public void isThreadState(boolean isPlay) {
-            this.isPlay = isPlay;
-        }
-
         public void stopThread() {
-            isPlay = !isPlay;
+            isPlay = false;
         }
 
         public void run(){
@@ -179,9 +159,9 @@ public class MainActivity extends Activity implements View.OnClickListener, Sens
                 String data = String.valueOf(gyroX)+":"
                         +String.valueOf(gyroY)+":"
                         +String.valueOf(gyroZ)+":"
-                        +String.valueOf(accelXValue)+":"
-                        +String.valueOf(accelYValue)+":"
-                        +String.valueOf(accelZValue);
+                        +String.valueOf(accelX)+":"
+                        +String.valueOf(accelY)+":"
+                        +String.valueOf(accelZ);
                 byte[] send = data.getBytes();
                 //System.out.println(send.toString());
                 btService.write(send);
